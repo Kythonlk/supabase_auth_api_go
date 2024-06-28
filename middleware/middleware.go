@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func accessTokenMiddleware(next http.HandlerFunc, client gotrue.Client) http.HandlerFunc {
+func AccessTokenMiddleware(next http.HandlerFunc, client gotrue.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {

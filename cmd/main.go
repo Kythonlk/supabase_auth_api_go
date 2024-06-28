@@ -2,13 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/Kythonlk/supabase_auth_api_go/middleware"
 	"github.com/Kythonlk/supabase_auth_api_go/types"
 	"github.com/supabase-community/gotrue-go"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 )
 
 func main() {
@@ -65,7 +65,7 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/api/v01/protected", accessTokenMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/v01/protected", middleware.AccessTokenMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Protected content accessed"))
 	}, client))
 
