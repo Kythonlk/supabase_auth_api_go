@@ -2,19 +2,21 @@ package main
 
 import (
 	"encoding/json"
-	"log"
-	"net/http"
-	"os"
-
 	"github.com/Kythonlk/supabase_auth_api_go/types"
 	"github.com/supabase-community/gotrue-go"
 	"io"
+	"log"
+	"net/http"
+	"os"
+	"strings"
 )
 
 func main() {
-
 	projectReference := os.Getenv("PR_REF")
 	apiKey := os.Getenv("API_KEY")
+	if projectReference == "" || apiKey == "" {
+		log.Fatal("PR_REF and API_KEY environment variables must be set")
+	}
 
 	logFile, err := os.OpenFile("application.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
@@ -25,11 +27,8 @@ func main() {
 	mw := io.MultiWriter(os.Stdout, logFile)
 	log.SetOutput(mw)
 
-	// Initialise client
-	client := gotrue.New(
-		projectReference,
-		apiKey,
-	)
+	// Initialize client
+	client := gotrue.New(projectReference, apiKey)
 
 	http.HandleFunc("/api/v01/refresh_token", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -44,7 +43,7 @@ func main() {
 			return
 		}
 
-		login, err := client.RefreshToken(req.RefreshToken)
+		session, err := client.RefreshToken(req.RefreshToken)
 		if err != nil {
 			log.Printf("Failed to refresh token: %v", err)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -52,17 +51,23 @@ func main() {
 		}
 
 		response := types.RefreshTokenResponse{
-			AccessToken:  login.AccessToken,
-			RefreshToken: login.RefreshToken,
+			AccessToken:  session.AccessToken,
+			RefreshToken: session.RefreshToken,
+			UserID:       session.User.ID,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(w).Encode(response)
 		if err != nil {
+			log.Printf("Failed to encode response: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 	})
+
+	http.HandleFunc("/api/v01/protected", accessTokenMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Protected content accessed"))
+	}, client))
 
 	port := os.Getenv("PORT")
 	if port == "" {
